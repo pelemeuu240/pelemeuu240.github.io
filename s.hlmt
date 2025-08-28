@@ -1,106 +1,272 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <title>Файловый обменник (Статический)</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
-    <style>
-        .position-relative { position: relative; }
-        .eye-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; }
-        button, a { box-shadow: none !important; }  /* Убрана аура у кнопок */
-        /* Фикс ауры сайта (убран градиент/тень, простой тёмный фон) */
-        body { background: #1a1a1a; color: #fff; }
-    </style>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ShareBox</title>
+<style>
+:root{
+  --bg:#0b0f0f; --text:#e8f7ea; --muted:#9fb7a7; --red:#ff4d4d;
+  --accent:#2aff77; --accent2:#0bd466;
+  --auracolor:#0f351f; --aura:.35; --glow:.4;
+  --radius:16px; --pblur:6; --pshadow:.35;
+}
+*{box-sizing:border-box} html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 Inter,Segoe UI,Roboto,Arial,sans-serif;overflow-x:hidden}
+.aura{position:fixed;inset:-20% -20%;z-index:-2;pointer-events:none;background-repeat:no-repeat;background-attachment:fixed;filter:blur(50px) saturate(120%)}
+.top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px}
+.brand{font-weight:800}
+.btn,.iconbtn{appearance:none;border:none;border-radius:10px;padding:10px 14px;cursor:pointer;transition:.15s}
+.btn{background:linear-gradient(180deg,var(--accent),var(--accent2));color:#04240f;font-weight:700}
+.iconbtn{background:#101714;border:1px solid #173b29;color:#bfe6cd}
+.btn:hover,.iconbtn:hover{filter:brightness(1.05)}
+.card{max-width:980px;margin:0 auto 16px;background:#0e1513;border:1px solid #163626;border-radius:var(--radius);padding:18px;backdrop-filter:blur(calc(var(--pblur)*1px))}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1 1 360px;min-width:280px}
+
+.input{width:100%;background:#0d1413;border:1px solid #173b29;color:#e8f7ea;border-radius:10px;padding:10px}
+.input-group{position:relative}
+.eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#bfe6cd;cursor:pointer}
+.eye svg{width:20px;height:20px}
+.link{color:var(--accent);text-decoration:none}
+.link:hover{text-decoration:underline}
+.err{color:#ff6d6d;margin-top:8px;min-height:20px}
+.muted{color:var(--muted)} .hidden{display:none}
+
+.drop{border:2px dashed #1b3b2e;border-radius:14px;padding:18px;text-align:center;background:#0e1513}
+#file{display:none}
+.filebtn{display:inline-block;border-radius:12px;padding:10px 14px;background:linear-gradient(180deg,var(--accent),var(--accent2));color:#04240f;font-weight:700;cursor:pointer}
+.name{color:#9fb7a7;margin-top:8px;min-height:20px}
+.progress{height:10px;background:#0c1412;border:1px solid #173b29;border-radius:999px;overflow:hidden;margin-top:10px;display:none}
+.progress>div{height:100%;width:0%;background:linear-gradient(90deg,#0bd466,#2aff77);transition:width .15s}
+
+.chat{display:flex;gap:12px}
+.ticketlist{flex:0 0 240px;border-right:1px dashed #173b29;padding-right:10px}
+.msgs{flex:1;border:1px solid #173b29;border-radius:12px;padding:10px;min-height:220px;background:#0f1614;overflow:auto}
+.msg{margin:6px 0}.msg .from{font-size:12px;color:#86c7a0}.msg .bubble{display:inline-block;padding:8px 10px;background:#0c1412;border:1px solid #173b29;border-radius:10px;margin-top:2px}
+
+.sets{display:flex;gap:12px;flex-wrap:wrap}
+.sliderrow{display:flex;align-items:center;gap:10px}
+.sliderrow input[type=range]{flex:1}
+</style>
 </head>
 <body>
-    <div class="container mt-5" id="loginForm">
-        <h2>Вход</h2>
-        <input type="email" id="email" placeholder="Email" required class="form-control mb-2">
-        <div class="position-relative mb-2">
-            <input type="password" id="password" placeholder="Пароль" required class="form-control">
-            <span class="eye-icon" onclick="togglePassword('password')"><i class="fas fa-eye-slash"></i></span>
-        </div>
-        <button onclick="login()" class="btn btn-primary">Войти</button>
-        <p>Нет аккаунта? <a href="#" onclick="showRegister()">Создай</a></p>
+<div class="aura" id="aura"></div>
+
+<div class="top">
+  <div class="brand">ShareBox</div>
+  <div>
+    <button id="settingsBtn" class="iconbtn">Настройки</button>
+    <button id="logoutBtn" class="iconbtn hidden">Выйти</button>
+  </div>
+</div>
+
+<!-- AUTH -->
+<div id="authCard" class="card">
+  <div id="loginView">
+    <h3>Войти</h3>
+    <input id="loginEmail" class="input" placeholder="Почта" style="margin-top:6px">
+    <div class="input-group" style="margin-top:6px">
+      <input id="loginPass" class="input" type="password" placeholder="Пароль">
+      <button class="eye" data-for="loginPass" aria-label="Показать/скрыть">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3l18 18"/><path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-3.42"/><path d="M21 12s-3.5-6-9-6-9 6-9 6 3.5 6 9 6 9-6 9-6z"/></svg>
+      </button>
     </div>
+    <button id="loginBtn" class="btn" style="margin-top:8px">Войти</button>
+    <div class="err" id="loginErr"></div>
+    <div class="muted" style="margin-top:8px">Нет аккаунта? <a id="toReg" class="link" href="#">Создай</a></div>
+  </div>
 
-    <div class="container mt-5 d-none" id="registerForm">
-        <h2>Регистрация</h2>
-        <input type="text" id="nickname" placeholder="Никнейм" required class="form-control mb-2">
-        <input type="email" id="regEmail" placeholder="Email" required class="form-control mb-2">
-        <div class="position-relative mb-2">
-            <input type="password" id="regPassword" placeholder="Пароль" required class="form-control">
-            <span class="eye-icon" onclick="togglePassword('regPassword')"><i class="fas fa-eye-slash"></i></span>
-        </div>
-        <div class="position-relative mb-2">
-            <input type="password" id="confirmPassword" placeholder="Подтверждение пароля" required class="form-control">
-            <span class="eye-icon" onclick="togglePassword('confirmPassword')"><i class="fas fa-eye-slash"></i></span>
-        </div>
-        <button onclick="register()" class="btn btn-primary">Зарегистрироваться</button>
-        <p>Есть аккаунт? <a href="#" onclick="showLogin()">Войти</a></p>
+  <div id="regView" class="hidden">
+    <h3>Регистрация</h3>
+    <input id="regNick" class="input" placeholder="Ник" style="margin-top:6px">
+    <input id="regEmail" class="input" placeholder="Почта" style="margin-top:6px">
+    <div class="input-group" style="margin-top:6px">
+      <input id="regPass" class="input" type="password" placeholder="Пароль">
+      <button class="eye" data-for="regPass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3l18 18"/><path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-3.42"/><path d="M21 12s-3.5-6-9-6-9 6-9 6 3.5 6 9 6 9-6 9-6z"/></svg></button>
     </div>
-
-    <div class="container mt-5 d-none" id="mainContent">
-        <h2>Добро пожаловать!</h2>
-        <button onclick="logout()" class="btn btn-secondary">Выйти</button>
-        <!-- Здесь ваш основной контент -->
+    <div class="input-group" style="margin-top:6px">
+      <input id="regPass2" class="input" type="password" placeholder="Подтверждение пароля">
+      <button class="eye" data-for="regPass2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3l18 18"/><path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-3.42"/><path d="M21 12s-3.5-6-9-6-9 6-9 6 3.5 6 9 6 9-6 9-6z"/></svg></button>
     </div>
+    <button id="regBtn" class="btn" style="margin-top:8px">Зарегистрироваться</button>
+    <div class="err" id="regErr"></div>
+    <div id="verifyBox" class="hidden" style="margin-top:10px">
+      <div class="muted">Код отправлен на почту:</div>
+      <input id="vEmail" class="input" placeholder="Почта" style="margin-top:6px">
+      <input id="vCode" class="input" placeholder="Код" style="margin-top:6px">
+      <div class="row" style="margin-top:6px">
+        <button id="verifyBtn" class="iconbtn">Подтвердить</button>
+        <button id="resendBtn" class="iconbtn">Отправить ещё раз</button>
+      </div>
+      <div class="err" id="verifyErr"></div>
+    </div>
+    <div class="muted" style="margin-top:8px"><a id="toLogin" class="link" href="#">У меня есть аккаунт</a></div>
+  </div>
+</div>
 
-    <script>
-        function togglePassword(id) {
-            const input = document.getElementById(id);
-            const icon = input.nextElementSibling.querySelector('i');
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
-            } else {
-                input.type = 'password';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            }
-        }
+<!-- APP -->
+<div id="appCard" class="card hidden">
+  <div class="row">
+    <div class="col">
+      <h3>Загрузка файла</h3>
+      <div class="drop">
+        <label class="filebtn"><input id="file" type="file">Выбрать файл</label>
+        <div id="fname" class="name"></div>
+        <div style="margin-top:8px">Срок (дней): <span id="daysVal">3</span></div>
+        <input id="days" type="range" min="1" max="365" value="3"/>
+        <div class="row" style="margin-top:8px"><button id="uploadBtn" class="btn">Загрузить</button><button id="copyBtn" class="iconbtn hidden">Скопировать ссылку</button></div>
+        <div class="progress" id="progress"><div></div></div>
+        <div class="err" id="upErr"></div>
+        <div id="result" class="muted hidden" style="margin-top:6px">Ссылка: <a id="link" class="link" target="_blank" rel="noopener"></a> <span id="meta"></span></div>
+      </div>
+    </div>
+    <div class="col">
+      <h3>Тех. поддержка</h3>
+      <div class="chat">
+        <div class="ticketlist">
+          <button id="newTicket" class="iconbtn">Новый тикет</button>
+          <div id="tickets" style="margin-top:8px" class="muted"></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column">
+          <div id="msgs" class="msgs"></div>
+          <div class="row" style="margin-top:8px">
+            <input id="msgText" class="input" placeholder="Сообщение...">
+            <button id="sendMsg" class="iconbtn">Отправить</button>
+          </div>
+        </div>
+      </div>
+      <div class="err" id="chatErr"></div>
+    </div>
+  </div>
+</div>
 
-        function showRegister() {
-            document.getElementById('loginForm').classList.add('d-none');
-            document.getElementById('registerForm').classList.remove('d-none');
-        }
+<!-- SETTINGS -->
+<div id="setCard" class="card hidden">
+  <h3>Настройки</h3>
+  <div class="sets">
+    <div class="col"><div class="muted">Акцент</div><input id="accentPick" type="color" class="input" value="#2aff77"></div>
+    <div class="col"><div class="muted">Цвет ауры</div><input id="auraPick" type="color" class="input" value="#0f351f"></div>
+    <div class="col">
+      <div class="sliderrow"><label style="min-width:140px">Интенсивность ауры</label><input id="aura" type="range" min="0" max="1" step="0.01" value=".35"></div>
+      <div class="sliderrow" style="margin-top:6px"><label style="min-width:140px">Свет (фон)</label><input id="glow" type="range" min="0" max="1" step="0.01" value=".4"></div>
+    </div>
+    <div class="col">
+      <div class="sliderrow"><label style="min-width:140px">Скругление</label><input id="rad" type="range" min="8" max="30" step="1" value="16"></div>
+      <div class="sliderrow" style="margin-top:6px"><label style="min-width:140px">Размытие</label><input id="pblur" type="range" min="0" max="20" step="1" value="6"></div>
+      <div class="sliderrow" style="margin-top:6px"><label style="min-width:140px">Тень</label><input id="pshadow" type="range" min="0" max="1" step="0.01" value=".35"></div>
+    </div>
+  </div>
+</div>
 
-        function showLogin() {
-            document.getElementById('registerForm').classList.add('d-none');
-            document.getElementById('loginForm').classList.remove('d-none');
-        }
+<script>
+const API_URL = localStorage.getItem('api_url') || 'http://127.0.0.1:8000';
+let TOKEN=null, CURRENT_TICKET=null, ES=null;
 
-        function register() {
-            const nickname = document.getElementById('nickname').value;
-            const email = document.getElementById('regEmail').value;
-            const password = document.getElementById('regPassword').value;
-            const confirm = document.getElementById('confirmPassword').value;
+// Toggle login/register
+const loginView=document.getElementById('loginView'), regView=document.getElementById('regView');
+document.getElementById('toReg').onclick=(e)=>{e.preventDefault();loginView.classList.add('hidden');regView.classList.remove('hidden');};
+document.getElementById('toLogin').onclick=(e)=>{e.preventDefault();regView.classList.add('hidden');loginView.classList.remove('hidden');};
 
-            if (password !== confirm) return alert('Пароли не совпадают');
+// Eyes (пароль скрыт по умолчанию)
+document.querySelectorAll('.eye').forEach(b=> b.addEventListener('click', ()=>{
+  const id=b.getAttribute('data-for'), inp=document.getElementById(id);
+  const pass=inp.type==='password'; inp.type=pass?'text':'password';
+  b.innerHTML = pass
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3l18 18"/><path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-3.42"/><path d="M21 12s-3.5-6-9-6-9 6-9 6 3.5 6 9 6 9-6 9-6z"/></svg>';
+}));
 
-            localStorage.setItem('user', JSON.stringify({nickname, email, password}));
-            alert('Регистрация успешна! Теперь войдите.');
-            showLogin();
-        }
+// Auth
+const $=id=>document.getElementById(id);
+$('settingsBtn').onclick=()=> $('setCard').classList.toggle('hidden');
+$('logoutBtn').onclick=()=>{TOKEN=null;localStorage.removeItem('token');onLoggedOut();};
 
-        function login() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const user = JSON.parse(localStorage.getItem('user'));
+$('loginBtn').onclick=async ()=>{
+  $('loginErr').textContent='';
+  try{
+    const r=await fetch(API_URL+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('loginEmail').value.trim(),password:$('loginPass').value})});
+    const j=await r.json(); if(!j.ok){$('loginErr').textContent=j.error||'Ошибка входа';return;}
+    TOKEN=j.token;localStorage.setItem('token',TOKEN);onLoggedIn();
+  }catch(e){$('loginErr').textContent='Сеть недоступна';}
+};
 
-            if (user && user.email === email && user.password === password) {
-                document.getElementById('loginForm').classList.add('d-none');
-                document.getElementById('mainContent').classList.remove('d-none');
-            } else {
-                alert('Неверный email или пароль');
-            }
-        }
+$('regBtn').onclick=async ()=>{
+  $('regErr').textContent='';
+  const nick=$('regNick').value.trim(), email=$('regEmail').value.trim(), password=$('regPass').value, confirm=$('regPass2').value;
+  try{
+    const r=await fetch(API_URL+'/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nick,email,password,confirm})});
+    const j=await r.json(); if(!j.ok){$('regErr').textContent=j.error||'Ошибка регистрации';return;}
+    $('vEmail').value=email; document.getElementById('verifyBox').classList.remove('hidden');
+  }catch(e){$('regErr').textContent='Сеть недоступна';}
+};
+$('verifyBtn').onclick=async ()=>{
+  $('verifyErr').textContent='';
+  try{
+    const r=await fetch(API_URL+'/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('vEmail').value.trim(),code:$('vCode').value.trim()})});
+    const j=await r.json(); if(!j.ok){$('verifyErr').textContent=j.error||'Код неверен';return;}
+    alert('Почта подтверждена! Войдите.');
+    loginView.classList.remove('hidden'); regView.classList.add('hidden');
+  }catch(e){$('verifyErr').textContent='Сеть недоступна';}
+};
+$('resendBtn').onclick=async ()=>{
+  const r=await fetch(API_URL+'/api/auth/resend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('vEmail').value.trim()})});
+  const j=await r.json(); if(!j.ok) alert('Не отправлено: '+(j.error||''));
+};
 
-        function logout() {
-            document.getElementById('mainContent').classList.add('d-none');
-            document.getElementById('loginForm').classList.remove('d-none');
-        }
-    </script>
-</body>
-</html>
+function onLoggedIn(){ document.getElementById('authCard').classList.add('hidden'); document.getElementById('appCard').classList.remove('hidden'); document.getElementById('logoutBtn').classList.remove('hidden'); loadTickets(); }
+function onLoggedOut(){ document.getElementById('authCard').classList.remove('hidden'); document.getElementById('appCard').classList.add('hidden'); document.getElementById('logoutBtn').classList.add('hidden'); if(ES){ES.close();ES=null;} }
+window.addEventListener('load', async ()=>{
+  TOKEN=localStorage.getItem('token');
+  if(TOKEN){
+    try{ const r=await fetch(API_URL+'/api/user/me',{headers:{'Authorization':'Bearer '+TOKEN}}); const j=await r.json(); if(j.ok){onLoggedIn(); return;} }catch(e){}
+    TOKEN=null; localStorage.removeItem('token');
+  }
+  onLoggedOut();
+});
+
+// Upload
+const fileInput=$('file'), fname=$('fname'), days=$('days'), daysVal=$('daysVal'), progress=$('progress'), bar=progress.querySelector('div'), upErr=$('upErr'), result=$('result'), link=$('link'), meta=$('meta');
+let THE_FILE=null; fileInput.addEventListener('change', e=>{ const f=e.target.files[0]; THE_FILE=f; fname.textContent=f? `${f.name} (${(f.size/1024/1024).toFixed(2)} MB)`:''; });
+$('uploadBtn').onclick=()=>{
+  upErr.textContent=''; result.classList.add('hidden'); $('copyBtn').classList.add('hidden');
+  if(!THE_FILE){ upErr.textContent='Выбери файл'; return; }
+  const form=new FormData(); form.append('file',THE_FILE); form.append('days',days.value);
+  const xhr=new XMLHttpRequest(); xhr.open('POST',API_URL+'/api/upload',true); xhr.setRequestHeader('Authorization','Bearer '+TOKEN);
+  xhr.upload.onprogress=(e)=>{ if(e.lengthComputable){ progress.style.display='block'; bar.style.width=Math.round(e.loaded/e.total*100)+'%'; } };
+  xhr.onreadystatechange=()=>{ if(xhr.readyState===4){ progress.style.display='none'; bar.style.width='0%';
+    try{ const j=JSON.parse(xhr.responseText); if(xhr.status===200 && j.ok){ link.textContent=j.link; link.href=j.link; meta.textContent=` | ${j.provider} | ${j.ttl}`; result.classList.remove('hidden'); $('copyBtn').classList.remove('hidden'); } else { upErr.textContent=j.error||('Ошибка '+xhr.status); } }
+    catch(e){ upErr.textContent='Ошибка сервера'; }
+  }};
+  xhr.send(form);
+};
+$('copyBtn').onclick=()=>{ if(link.href) navigator.clipboard.writeText(link.href); };
+days.addEventListener('input', ()=> daysVal.textContent=days.value);
+
+// Chat
+async function loadTickets(){
+  const r=await fetch(API_URL+'/api/support/tickets',{headers:{'Authorization':'Bearer '+TOKEN}});
+  const j=await r.json(); const list=$('tickets'); list.innerHTML='';
+  if(!j.ok){list.textContent='Ошибка'; return;}
+  j.items.forEach(it=>{ const d=document.createElement('div'); d.textContent=`${it.id} — ${it.created_at}`; d.style.cursor='pointer'; d.onclick=()=>openTicket(it.id); list.appendChild(d); });
+}
+$('newTicket').onclick=async()=>{ const r=await fetch(API_URL+'/api/support/ticket',{method:'POST',headers:{'Authorization':'Bearer '+TOKEN}}); const j=await r.json(); if(j.ok){ await loadTickets(); openTicket(j.ticket_id);} };
+function openTicket(id){
+  CURRENT_TICKET=id; $('msgs').innerHTML=''; if(ES){ES.close();ES=null;}
+  ES = new EventSource(`${API_URL}/api/support/stream?ticket_id=${encodeURIComponent(id)}`);
+  ES.onmessage=(ev)=>{ try{ const m=JSON.parse(ev.data); appendMsg(m.from,m.text); }catch(_){ } };
+}
+function appendMsg(from,text){ const d=document.createElement('div'); d.className='msg'; const f=document.createElement('div'); f.className='from'; f.textContent=from; const b=document.createElement('div'); b.className='bubble'; b.textContent=text; d.appendChild(f); d.appendChild(b); $('msgs').appendChild(d); $('msgs').scrollTop=$('msgs').scrollHeight; }
+$('sendMsg').onclick=async()=>{ const t=$('msgText').value.trim(); if(!t||!CURRENT_TICKET) return; $('msgText').value=''; const r=await fetch(API_URL+'/api/support/send',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:JSON.stringify({ticket_id:CURRENT_TICKET,text:t})}); const j=await r.json(); if(!j.ok) alert('Не отправлено'); };
+$('msgText').addEventListener('keydown',(e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('sendMsg').click(); } });
+
+// Settings (аура/цвета/панель)
+const auraEl=$('aura'), accentPick=$('accentPick'), auraPick=$('auraPick'), auraIn=$('aura'), glowIn=$('glow'), rad=$('rad'), pblur=$('pblur'), pshadow=$('pshadow');
+function applyAccent(hex){
+  document.documentElement.style.setProperty('--accent', hex);
+  const c=parseInt(hex.slice(1),16),r=(c>>16)&255,g=(c>>8)&255,b=c&255, n=x=>Math.max(0,Math.min(255,Math.round(x*.7)));
+  document.documentElement.style.setProperty('--accent2','#'+(n(r)<<16|n(g)<<8|n(b)).toString(16).padStart(6,'0'));
+}
+function applyAura(){
+  const h=auraPick.value, n=parseInt(h.slice(1),16), r=(n>>16)&255, g=(n>>8)&255, b=n&255, a=(0.5*parseFloat(auraIn.value||'.35')).toFixed(3);
+  auraEl.style.background = `radial-gradient(60% 50% at -10% -10%, rgba(${r},${g},${b},${a}) 0%, transparent 70%), radial-gradient(60% 
